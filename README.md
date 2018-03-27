@@ -14,6 +14,7 @@ http://service.aibizhi.adesk.com/v1/wallpaper/category/4e4d610cdf714d2966000003/
 ?skip=N，
 
 N为正整数，任意数即可，表示跳过前N张，一次最多取20张图片，图库里大概有90000+动漫类图片……沃日怂了
+
 返回json数据，其中就有个id，用id即可使用图片接口
 
 **注意：请求头出需要参数User-Agent，值为picasso,170,windows，这样才能获取到Windows上面的数据，否则将获取到其他数据。**

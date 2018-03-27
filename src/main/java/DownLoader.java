@@ -12,10 +12,8 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 下载器
@@ -23,6 +21,13 @@ import java.util.concurrent.TimeUnit;
 public class DownLoader {
 
     private ThreadPoolExecutor executor;
+    private int CORE_COUNT = Runtime.getRuntime().availableProcessors();
+    private int CORE_POOL_SIZE = CORE_COUNT + 1;
+    private int CORE_POOL_MAX_SIZE = CORE_COUNT * 2 + 1;
+    private int KEEP_ALIVE = 10;
+
+    ThreadPoolExecutor poolExecutor;
+
 
     ExecutorService cachedThreadPool;
     private volatile static DownLoader downLoader;
@@ -39,7 +44,11 @@ public class DownLoader {
 
     private DownLoader() {
 
-        cachedThreadPool = Executors.newCachedThreadPool();
+//        cachedThreadPool = Executors.newCachedThreadPool();
+
+        BlockingQueue<Runnable> runnableBlockingQueue = new LinkedBlockingQueue<>();
+        poolExecutor = new ThreadPoolExecutor(CORE_POOL_SIZE, CORE_POOL_MAX_SIZE, KEEP_ALIVE, TimeUnit.SECONDS, runnableBlockingQueue);
+
     }
 
     public void startDownload(String id) {
@@ -48,13 +57,12 @@ public class DownLoader {
             download(id);
         };
 
-        cachedThreadPool.execute(runnable);
+        poolExecutor.execute(runnable);
     }
 
     private void download(String id) {
 
         String url = "http://img.aibizhi.adesk.com/" + id;
-
 
 
         try {
@@ -65,7 +73,8 @@ public class DownLoader {
             OkHttpClient.Builder builder = new OkHttpClient.Builder()
                     .connectTimeout(15, TimeUnit.SECONDS)
                     .writeTimeout(20, TimeUnit.SECONDS)
-                    .readTimeout(20, TimeUnit.SECONDS);
+                    .readTimeout(20, TimeUnit.SECONDS)
+                    .retryOnConnectionFailure(true);
 
             OkHttpClient okHttpClient = builder.build();
 
@@ -73,18 +82,19 @@ public class DownLoader {
 
             Response response = call.execute();
 
-            String type=response.header("Content-Type");
+            String type = response.header("Content-Type");
 
-            System.out.println("type---->>>"+response.headers().get("Content-Type"));
-
-            if (type!=null&&type.startsWith("image/")) {
+            if (type != null && type.startsWith("image/")) {
 
                 String path = "/Volumes/download/动漫壁纸/";
 
-                String image_path = path + id + "."+type.substring(6,type.length());
+                String image_path = path + id + "." + type.substring(6, type.length());
 
                 File file = new File(image_path);
 
+
+
+                System.out.println("" + file.getName());
 
                 FileOutputStream fileOutputStream = new FileOutputStream(file);
 
@@ -115,9 +125,7 @@ public class DownLoader {
 
                 fileChannel.close();
                 fileOutputStream.close();
-
             }
-
 
         } catch (Exception e) {
             e.printStackTrace();
